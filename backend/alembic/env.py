@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import Base
 # Import your models here so Alembic can see them
 from app.models import task
+from app.models import user
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

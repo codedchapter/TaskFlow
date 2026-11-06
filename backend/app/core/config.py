@@ -6,6 +6,8 @@ class Settings(BaseSettings):
 
     # Define the variables you expect to find in the .env file
     DATABASE_URL: str
+    SECRET_KEY: str
+    ALGORITHM: str
 
 # Create a single, global instance of the settings
 settings = Settings()

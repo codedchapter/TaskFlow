@@ -12,3 +12,4 @@ class TaskCreate(TaskBase):
 
 class TaskResponse(TaskBase):
     id : int
+    user_id: int
