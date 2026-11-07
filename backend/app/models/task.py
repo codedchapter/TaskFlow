@@ -10,3 +10,4 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

@@ -13,3 +13,9 @@ class TaskCreate(TaskBase):
 class TaskResponse(TaskBase):
     id : int
     user_id: int
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = Field(None, min_length=3)
+    description: str | None = None
+    is_completed: bool | None = None
