@@ -52,4 +52,34 @@ export const api = {
     })
     return handleResponse<{ id: number; title: string; user_id: number }>(response)
   },
+
+    async deleteTask(token: string, taskId: number) {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to delete task')
+    }
+    return true
+  },
+
+  async updateTask(token: string, taskId: number, updates: { is_completed?: boolean }) {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updates),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to update task')
+    }
+    return response.json()
+  },
 }

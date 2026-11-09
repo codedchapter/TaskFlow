@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
-from app.schemas.task import TaskCreate, TaskResponse
+from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.task import Task
@@ -65,3 +65,33 @@ async def delete_task(
     await db.commit()
 
     return None
+
+
+@router.patch("/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: int,
+    task_update: TaskUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.user_id == current_user.id,
+            Task.is_deleted == False
+        )
+    )
+
+    db_task = result.scalar_one_or_none()
+
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    update_data = task_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_task, field, value)                 # dynamically updates the sqlalchemy model.
+
+    await db.commit()
+    await db.refresh(db_task)
+    return db_task

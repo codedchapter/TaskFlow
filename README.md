@@ -141,25 +141,25 @@ TaskFlow is being developed incrementally, with the backend foundation taking pr
 
 - [x] Initialize FastAPI project with `uv`
 - [x] Establish project structure
-- [ ] Configure asynchronous SQLAlchemy 2.0
-- [ ] Integrate MySQL using `asyncmy`
-- [ ] Configure Alembic database migrations
-- [ ] Implement Task CRUD endpoints
-- [ ] Add Pydantic V2 request and response schemas
-- [ ] Implement user authentication (JWT & bcrypt)
+- [x] Configure asynchronous SQLAlchemy 2.0
+- [x] Integrate MySQL using `asyncmy`
+- [x] Configure Alembic database migrations
+- [x] Implement Task CRUD endpoints (with pagination, filtering, and soft deletes)
+- [x] Add Pydantic V2 request and response schemas
+- [x] Implement user authentication (JWT & bcrypt)
+- [x] Implement custom middleware (Logging, Rate Limiting, Auth Tracking)
 - [ ] Implement Role-Based Access Control (RBAC)
 - [ ] Develop multi-tenant data isolation
 
 ### Phase 2 — Frontend Development
 
-- [ ] Initialize Next.js with App Router
-- [ ] Configure TypeScript and Tailwind CSS
-- [ ] Build reusable UI components
-- [ ] Implement authentication and protected routes
-- [ ] Integrate backend APIs
-- [ ] Implement state management with Zustand
-- [ ] Integrate TanStack Query
-- [ ] Build task and project management dashboards
+- [x] Initialize Next.js with App Router
+- [x] Configure TypeScript and Tailwind CSS
+- [x] Build reusable UI components (Button, Input, Container)
+- [x] Implement authentication and protected routes
+- [x] Integrate backend APIs
+- [x] Build task management dashboard (Create, Read, Update, Delete)
+- [ ] Implement state management with Zustand / TanStack Query
 
 ### Phase 3 — Deployment & Infrastructure
 

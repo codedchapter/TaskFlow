@@ -116,34 +116,68 @@ export default function DashboardPage() {
         </form>
       )}
 
-      {tasks.length === 0 ? (
-        <div className="rounded-lg border border-foreground/10 p-12 text-center">
-          <p className="text-foreground/60">No tasks yet. Create your first one!</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
+              <div className="space-y-3">
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="rounded-lg border border-foreground/10 p-4 transition-colors hover:border-accent/30"
+              className="group flex items-start justify-between rounded-lg border border-foreground/10 p-4 transition-colors hover:border-accent/30"
             >
-              <h3 className="font-semibold">{task.title}</h3>
-              {task.description && (
-                <p className="mt-1 text-sm text-foreground/60">{task.description}</p>
-              )}
-              <div className="mt-2 flex items-center gap-2">
-                <span
-                  className={`text-xs ${
-                    task.is_completed ? 'text-green-500' : 'text-foreground/40'
+              <div className="flex-1">
+                <h3 className={`font-semibold ${task.is_completed ? 'line-through text-foreground/50' : ''}`}>
+                  {task.title}
+                </h3>
+                {task.description && (
+                  <p className={`mt-1 text-sm ${task.is_completed ? 'text-foreground/30 line-through' : 'text-foreground/60'}`}>
+                    {task.description}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+                {/* Toggle Complete Button */}
+                <button
+                  onClick={async () => {
+                    const token = auth.getToken()
+                    if (!token) return
+                    try {
+                      await api.updateTask(token, task.id, { is_completed: !task.is_completed })
+                      // refresh the list
+                      const updatedTasks = await api.getTasks(token)
+                      setTasks(updatedTasks)
+                    } catch (err) {
+                      console.error('Failed to update task:', err)
+                    }
+                  }}
+                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                    task.is_completed
+                      ? 'bg-foreground/10 text-foreground/60 hover:bg-foreground/20'
+                      : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
                   }`}
                 >
-                  {task.is_completed ? '✓ Completed' : '○ In progress'}
-                </span>
+                  {task.is_completed ? '↩ Undo' : '✓ Complete'}
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (!confirm('Are you sure you want to delete this task?')) return
+                    const token = auth.getToken()
+                    if (!token) return
+                    try {
+                      await api.deleteTask(token, task.id)
+                      // Remove from local state immediately
+                      setTasks(tasks.filter((t) => t.id !== task.id))
+                    } catch (err) {
+                      console.error('Failed to delete task:', err)
+                    }
+                  }}
+                  className="rounded px-3 py-1 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
+                >
+                  Delete
+                </button>
               </div>
             </div>
           ))}
         </div>
-      )}
     </Container>
   )
 }
