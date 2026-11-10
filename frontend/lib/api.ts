@@ -15,6 +15,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json()
 }
 
+export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done'
+
 export const api = {
   async register(email: string, password: string) {
     const response = await fetch(`${API_BASE}/auth/register`, {
@@ -22,7 +24,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
-    return handleResponse<{ id: number; email: string }>(response)
+    return handleResponse<{ id: number; email: string; role: string }>(response)
   },
 
   async login(email: string, password: string) {
@@ -34,14 +36,21 @@ export const api = {
     return handleResponse<{ access_token: string; token_type: string }>(response)
   },
 
-  async getTasks(token: string) {
-    const response = await fetch(`${API_BASE}/tasks/`, {
+  async getTasks(token: string, status?: string) {
+    const url = status
+      ? `${API_BASE}/tasks/?status=${status}`
+      : `${API_BASE}/tasks/`
+    const response = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    return handleResponse<Array<{ id: number; title: string; description: string | null; is_completed: boolean }>>(response)
+    return handleResponse<Task[]>(response)
   },
 
-  async createTask(token: string, task: { title: string; description?: string; is_completed?: boolean }) {
+  async createTask(token: string, task: {
+    title: string
+    description?: string
+    status?: TaskStatus
+  }) {
     const response = await fetch(`${API_BASE}/tasks/`, {
       method: 'POST',
       headers: {
@@ -50,10 +59,22 @@ export const api = {
       },
       body: JSON.stringify(task),
     })
-    return handleResponse<{ id: number; title: string; user_id: number }>(response)
+    return handleResponse<Task>(response)
   },
 
-    async deleteTask(token: string, taskId: number) {
+  async updateTask(token: string, taskId: number, updates: { status?: TaskStatus }) {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(updates),
+    })
+    return handleResponse<Task>(response)
+  },
+
+  async deleteTask(token: string, taskId: number) {
     const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
@@ -65,21 +86,14 @@ export const api = {
     }
     return true
   },
+}
 
-  async updateTask(token: string, taskId: number, updates: { is_completed?: boolean }) {
-    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(updates),
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Failed to update task')
-    }
-    return response.json()
-  },
+export type Task = {
+  id: number
+  title: string
+  description: string | null
+  status: TaskStatus
+  user_id: number
+  is_deleted: boolean
+  created_at: string
 }

@@ -5,15 +5,8 @@ import { useRouter } from 'next/navigation'
 import Container from '@/components/ui/Container'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { api } from '@/lib/api'
+import { api, Task, TaskStatus } from '@/lib/api'
 import { auth } from '@/lib/auth'
-
-type Task = {
-  id: number
-  title: string
-  description: string | null
-  is_completed: boolean
-}
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -22,6 +15,7 @@ export default function DashboardPage() {
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
+  const [filterStatus, setFilterStatus] = useState<string>('')
 
   useEffect(() => {
     const token = auth.getToken()
@@ -31,14 +25,14 @@ export default function DashboardPage() {
     }
 
     api
-      .getTasks(token)
+      .getTasks(token, filterStatus || undefined)
       .then(setTasks)
       .catch(() => {
         auth.clearToken()
         router.push('/login')
       })
       .finally(() => setLoading(false))
-  }, [router])
+  }, [router, filterStatus])
 
   const handleLogout = () => {
     auth.clearToken()
@@ -54,18 +48,30 @@ export default function DashboardPage() {
       await api.createTask(token, {
         title: newTaskTitle,
         description: newTaskDescription || undefined,
+        status: 'todo',
       })
 
-      // Refresh the task list
-      const updatedTasks = await api.getTasks(token)
+      const updatedTasks = await api.getTasks(token, filterStatus || undefined)
       setTasks(updatedTasks)
 
-      // Reset form
       setNewTaskTitle('')
       setNewTaskDescription('')
       setShowCreateForm(false)
     } catch (err) {
       console.error('Failed to create task:', err)
+    }
+  }
+
+  const handleStatusChange = async (taskId: number, newStatus: TaskStatus) => {
+    const token = auth.getToken()
+    if (!token) return
+
+    try {
+      await api.updateTask(token, taskId, { status: newStatus })
+      const updatedTasks = await api.getTasks(token, filterStatus || undefined)
+      setTasks(updatedTasks)
+    } catch (err) {
+      console.error('Failed to update task:', err)
     }
   }
 
@@ -87,6 +93,23 @@ export default function DashboardPage() {
             {showCreateForm ? 'Cancel' : 'New Task'}
           </Button>
         </div>
+      </div>
+
+      {/* Status Filter */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        {['', 'todo', 'in_progress', 'review', 'done'].map((status) => (
+          <button
+            key={status}
+            onClick={() => setFilterStatus(status)}
+            className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+              filterStatus === status
+                ? 'bg-accent text-background'
+                : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
+            }`}
+          >
+            {status === '' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </button>
+        ))}
       </div>
 
       {showCreateForm && (
@@ -116,47 +139,42 @@ export default function DashboardPage() {
         </form>
       )}
 
-              <div className="space-y-3">
+      {tasks.length === 0 ? (
+        <div className="rounded-lg border border-foreground/10 p-12 text-center">
+          <p className="text-foreground/60">No tasks yet. Create your first one!</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
           {tasks.map((task) => (
             <div
               key={task.id}
               className="group flex items-start justify-between rounded-lg border border-foreground/10 p-4 transition-colors hover:border-accent/30"
             >
               <div className="flex-1">
-                <h3 className={`font-semibold ${task.is_completed ? 'line-through text-foreground/50' : ''}`}>
+                <h3 className={`font-semibold ${task.status === 'done' ? 'line-through text-foreground/50' : ''}`}>
                   {task.title}
                 </h3>
                 {task.description && (
-                  <p className={`mt-1 text-sm ${task.is_completed ? 'text-foreground/30 line-through' : 'text-foreground/60'}`}>
+                  <p className={`mt-1 text-sm ${task.status === 'done' ? 'text-foreground/30 line-through' : 'text-foreground/60'}`}>
                     {task.description}
                   </p>
                 )}
               </div>
 
               <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-                {/* Toggle Complete Button */}
-                <button
-                  onClick={async () => {
-                    const token = auth.getToken()
-                    if (!token) return
-                    try {
-                      await api.updateTask(token, task.id, { is_completed: !task.is_completed })
-                      // refresh the list
-                      const updatedTasks = await api.getTasks(token)
-                      setTasks(updatedTasks)
-                    } catch (err) {
-                      console.error('Failed to update task:', err)
-                    }
-                  }}
-                  className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                    task.is_completed
-                      ? 'bg-foreground/10 text-foreground/60 hover:bg-foreground/20'
-                      : 'bg-green-500/10 text-green-500 hover:bg-green-500/20'
-                  }`}
+                {/* Status Dropdown */}
+                <select
+                  value={task.status}
+                  onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
+                  className={`rounded px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${getStatusColor(task.status)}`}
                 >
-                  {task.is_completed ? '↩ Undo' : '✓ Complete'}
-                </button>
+                  <option value="todo">To Do</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="review">Review</option>
+                  <option value="done">Done</option>
+                </select>
 
+                {/* Delete Button */}
                 <button
                   onClick={async () => {
                     if (!confirm('Are you sure you want to delete this task?')) return
@@ -164,13 +182,12 @@ export default function DashboardPage() {
                     if (!token) return
                     try {
                       await api.deleteTask(token, task.id)
-                      // Remove from local state immediately
                       setTasks(tasks.filter((t) => t.id !== task.id))
                     } catch (err) {
                       console.error('Failed to delete task:', err)
                     }
                   }}
-                  className="rounded px-3 py-1 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
+                  className="rounded px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
                 >
                   Delete
                 </button>
@@ -178,6 +195,22 @@ export default function DashboardPage() {
             </div>
           ))}
         </div>
+      )}
     </Container>
   )
+}
+
+function getStatusColor(status: TaskStatus): string {
+  switch (status) {
+    case 'todo':
+      return 'bg-foreground/10 text-foreground'
+    case 'in_progress':
+      return 'bg-blue-500/10 text-blue-500'
+    case 'review':
+      return 'bg-yellow-500/10 text-yellow-500'
+    case 'done':
+      return 'bg-green-500/10 text-green-500'
+    default:
+      return 'bg-foreground/10 text-foreground'
+  }
 }
