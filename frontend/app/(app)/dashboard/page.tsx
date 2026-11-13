@@ -17,6 +17,10 @@ export default function DashboardPage() {
   const [newTaskDescription, setNewTaskDescription] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('')
 
+  // NEW: State for the Trash Bin
+  const [showTrash, setShowTrash] = useState(false)
+
+  // Fetch tasks OR trash based on the showTrash state
   useEffect(() => {
     const token = auth.getToken()
     if (!token) {
@@ -24,15 +28,23 @@ export default function DashboardPage() {
       return
     }
 
-    api
-      .getTasks(token, filterStatus || undefined)
-      .then(setTasks)
-      .catch(() => {
+    const fetchTasks = async () => {
+      setLoading(true)
+      try {
+        const data = showTrash
+          ? await api.getTrashTasks(token)
+          : await api.getTasks(token, filterStatus || undefined)
+        setTasks(data)
+      } catch {
         auth.clearToken()
         router.push('/login')
-      })
-      .finally(() => setLoading(false))
-  }, [router, filterStatus])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTasks()
+  }, [router, filterStatus, showTrash])
 
   const handleLogout = () => {
     auth.clearToken()
@@ -75,44 +87,72 @@ export default function DashboardPage() {
     }
   }
 
+  const handleRestoreTask = async (taskId: number) => {
+    const token = auth.getToken()
+    if (!token) return
+
+    try {
+      await api.restoreTask(token, taskId)
+      // Remove from trash view instantly
+      setTasks(tasks.filter((t) => t.id !== taskId))
+    } catch (err) {
+      console.error('Failed to restore task:', err)
+    }
+  }
+
   if (loading) {
     return (
       <Container className="py-20 text-center">
-        <p className="text-foreground/60">Loading your tasks...</p>
+        <p className="text-foreground/60">Loading...</p>
       </Container>
     )
   }
 
   return (
     <Container className="py-12">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Your Tasks</h1>
+      {/* Header */}
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {showTrash ? 'Trash Bin' : 'Your Tasks'}
+        </h1>
         <div className="flex gap-3">
           <Button variant="ghost" onClick={handleLogout}>Log out</Button>
-          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-            {showCreateForm ? 'Cancel' : 'New Task'}
+          {!showTrash && (
+            <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+              {showCreateForm ? 'Cancel' : 'New Task'}
+            </Button>
+          )}
+          {/* Toggle between Tasks and Trash */}
+          <Button
+            variant={showTrash ? 'primary' : 'ghost'}
+            onClick={() => setShowTrash(!showTrash)}
+          >
+            {showTrash ? '← Back to Tasks' : 'View Trash'}
           </Button>
         </div>
       </div>
 
-      {/* Status Filter */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {['', 'todo', 'in_progress', 'review', 'done'].map((status) => (
-          <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-              filterStatus === status
-                ? 'bg-accent text-background'
-                : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
-            }`}
-          >
-            {status === '' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          </button>
-        ))}
-      </div>
+      {/* Status Filters (Only show when NOT in trash) */}
+      {!showTrash && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {['', 'todo', 'in_progress', 'review', 'done'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+                filterStatus === status
+                  ? 'bg-accent text-background'
+                  : 'bg-foreground/10 text-foreground hover:bg-foreground/20'
+              }`}
+            >
+              {status === '' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {showCreateForm && (
+      {/* Create Form (Only show when NOT in trash) */}
+      {!showTrash && showCreateForm && (
         <form
           onSubmit={handleCreateTask}
           className="mb-8 rounded-lg border border-foreground/10 p-6"
@@ -126,7 +166,6 @@ export default function DashboardPage() {
             required
             minLength={3}
           />
-
           <Input
             id="description"
             label="Description (optional)"
@@ -134,21 +173,27 @@ export default function DashboardPage() {
             onChange={(e) => setNewTaskDescription(e.target.value)}
             placeholder="Add some details..."
           />
-
           <Button type="submit" className="mt-2">Create Task</Button>
         </form>
       )}
 
+      {/* Task / Trash List */}
       {tasks.length === 0 ? (
         <div className="rounded-lg border border-foreground/10 p-12 text-center">
-          <p className="text-foreground/60">No tasks yet. Create your first one!</p>
+          <p className="text-foreground/60">
+            {showTrash ? 'Trash is empty. Deleted tasks will show up here.' : 'No tasks yet. Create your first one!'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="group flex items-start justify-between rounded-lg border border-foreground/10 p-4 transition-colors hover:border-accent/30"
+              className={`group flex items-start justify-between rounded-lg border p-4 transition-colors ${
+                showTrash
+                  ? 'border-foreground/5 bg-foreground/5 opacity-75 hover:opacity-100'
+                  : 'border-foreground/10 hover:border-accent/30'
+              }`}
             >
               <div className="flex-1">
                 <h3 className={`font-semibold ${task.status === 'done' ? 'line-through text-foreground/50' : ''}`}>
@@ -162,35 +207,46 @@ export default function DashboardPage() {
               </div>
 
               <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-                {/* Status Dropdown */}
-                <select
-                  value={task.status}
-                  onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
-                  className={`rounded px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${getStatusColor(task.status)}`}
-                >
-                  <option value="todo">To Do</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="review">Review</option>
-                  <option value="done">Done</option>
-                </select>
+                {showTrash ? (
+                  // RESTORE BUTTON (Only in Trash view)
+                  <button
+                    onClick={() => handleRestoreTask(task.id)}
+                    className="rounded bg-green-500/10 px-3 py-1.5 text-xs font-medium text-green-500 transition-colors hover:bg-green-500/20"
+                  >
+                    ♻️ Restore
+                  </button>
+                ) : (
+                  // NORMAL ACTIONS (Only in Tasks view)
+                  <>
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
+                      className={`rounded px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${getStatusColor(task.status)}`}
+                    >
+                      <option value="todo">To Do</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="review">Review</option>
+                      <option value="done">Done</option>
+                    </select>
 
-                {/* Delete Button */}
-                <button
-                  onClick={async () => {
-                    if (!confirm('Are you sure you want to delete this task?')) return
-                    const token = auth.getToken()
-                    if (!token) return
-                    try {
-                      await api.deleteTask(token, task.id)
-                      setTasks(tasks.filter((t) => t.id !== task.id))
-                    } catch (err) {
-                      console.error('Failed to delete task:', err)
-                    }
-                  }}
-                  className="rounded px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
-                >
-                  Delete
-                </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to delete this task?')) return
+                        const token = auth.getToken()
+                        if (!token) return
+                        try {
+                          await api.deleteTask(token, task.id)
+                          setTasks(tasks.filter((t) => t.id !== task.id))
+                        } catch (err) {
+                          console.error('Failed to delete task:', err)
+                        }
+                      }}
+                      className="rounded px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))}

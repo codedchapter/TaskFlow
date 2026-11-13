@@ -61,6 +61,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Docker env
+.env
+.env.local
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

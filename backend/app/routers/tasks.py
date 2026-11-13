@@ -102,3 +102,31 @@ async def delete_task(
     await db.commit()
 
     return None
+
+
+@router.get("/trash", response_model=list[TaskResponse])
+async def get_trashed_tasks(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+
+    result = await db.execute(select(Task).where(Task.user_id == current_user.id, Task.is_deleted == True) )
+    return result.scalars().all()
+
+@router.post("/{task_id}/restore", response_model=TaskResponse)
+async def restore_task(
+    task_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+
+    result = await db.execute(select(Task).where(Task.id == task_id, Task.user_id == current_user.id, Task.is_deleted == True))
+    db_task = result.scalar_one_or_none()
+
+    if not db_task:
+        raise HTTPException(status_code=404, detail="Task not found in trash")
+
+    db_task.is_deleted = False
+    await db.commit()
+    await db.refresh(db_task)
+    return db_task

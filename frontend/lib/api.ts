@@ -86,6 +86,26 @@ export const api = {
     }
     return true
   },
+
+    async getTrashTasks(token: string) {
+    const response = await fetch(`${API_BASE}/tasks/trash`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return handleResponse<Task[]>(response)
+  },
+
+  async restoreTask(token: string, taskId: number) {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}/restore`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to restore task')
+    }
+    return response.json()
+  }
 }
 
 export type Task = {
