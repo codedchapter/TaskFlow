@@ -11,11 +11,13 @@ class TaskCreate(BaseModel):
     title: str = Field(min_length=3, max_length=255)
     description: str | None = Field(None, max_length=255)
     status: str = Field(default=TaskStatus.TODO)
+    project_id: int | None = None
 
 class TaskUpdate(BaseModel):
     title: str | None = Field(None, min_length=3, max_length=255)
     description: str | None = Field(None, max_length=255)
     status: str | None = None
+    project_id: int | None = None
 
 class TaskResponse(BaseModel):
     id: int
@@ -23,6 +25,7 @@ class TaskResponse(BaseModel):
     description: str | None
     status: str
     user_id: int
+    project_id: int | None
     is_deleted: bool
     # created_at: datetime
 

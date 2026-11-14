@@ -18,5 +18,6 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     status: Mapped[str] = mapped_column(String(20), default=TaskStatus.TODO.value, nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"), nullable=True, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     # created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

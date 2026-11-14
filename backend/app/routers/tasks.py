@@ -34,6 +34,7 @@ async def get_all_tasks(
     limit: int = Query(10, gt=0, le=100),
     status: str | None = None,
     search: str | None = None,
+    project_id: int | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -47,6 +48,13 @@ async def get_all_tasks(
 
     if search:
         query = query.where(Task.title.ilike(f"%{search}%"))
+
+    if project_id is not None:
+        if project_id == 0: #tasks with no project)
+
+            query = query.where(Task.project_id == None)
+        else:
+            query = query.where(Task.project_id == project_id)
 
     result = await db.execute(query.offset(skip).limit(limit))
     tasks = result.scalars().all()

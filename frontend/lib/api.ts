@@ -74,6 +74,25 @@ export const api = {
     return handleResponse<Task>(response)
   },
 
+   async getProjects(token: string) {
+    const response = await fetch(`${API_BASE}/projects/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return handleResponse<Project[]>(response)
+  },
+
+  async createProject(token: string, project: { name: string; description?: string; color?: string }) {
+    const response = await fetch(`${API_BASE}/projects/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(project),
+    })
+    return handleResponse<Project>(response)
+  },
+
   async deleteTask(token: string, taskId: number) {
     const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
       method: 'DELETE',
@@ -115,5 +134,13 @@ export type Task = {
   status: TaskStatus
   user_id: number
   is_deleted: boolean
+  created_at: string
+}
+export type Project = {
+  id: number
+  name: string
+  description: string | null
+  color: string
+  user_id: number
   created_at: string
 }

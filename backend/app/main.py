@@ -5,6 +5,7 @@ from app.routers import auth
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.middleware import RequestLoggingMiddleware, RateLimitMiddleware, AuthLoggingMiddleware
 from app.routers import admin
+from app.routers import projects
 
 app = FastAPI()
 
@@ -25,3 +26,4 @@ app.include_router(root.router)
 app.include_router(tasks.router, prefix="/api/v1/tasks", tags=["tasks"])
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
+app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
