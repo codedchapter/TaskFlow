@@ -62,7 +62,12 @@ export const api = {
     return handleResponse<Task>(response)
   },
 
-  async updateTask(token: string, taskId: number, updates: { status?: TaskStatus }) {
+    async updateTask(token: string, taskId: number, updates: {
+    title?: string
+    description?: string
+    status?: TaskStatus
+    project_id?: number
+  }) {
     const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
       method: 'PATCH',
       headers: {

@@ -8,6 +8,7 @@ import Input from '@/components/ui/Input'
 import { api, Task, TaskStatus, Project } from '@/lib/api'
 import { auth } from '@/lib/auth'
 import Sidebar from '@/components/Sidebar'
+import KanbanBoard from '@/components/kanban/KanbanBoard'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -27,7 +28,12 @@ export default function DashboardPage() {
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectColor, setNewProjectColor] = useState('#FF6B4A')
 
-  // Fetch data
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list')
+
   useEffect(() => {
     const token = auth.getToken()
     if (!token) {
@@ -72,7 +78,7 @@ export default function DashboardPage() {
         title: newTaskTitle,
         description: newTaskDescription || undefined,
         status: 'todo',
-        project_id: selectedProjectId ?? undefined, // Assign to current project
+        project_id: selectedProjectId ?? undefined,
       })
 
       const updatedTasks = await api.getTasks(token, filterStatus || undefined, selectedProjectId ?? undefined)
@@ -96,7 +102,7 @@ export default function DashboardPage() {
         color: newProjectColor,
       })
       setProjects([...projects, newProject])
-      setSelectedProjectId(newProject.id) // Switch to new project
+      setSelectedProjectId(newProject.id)
       setNewProjectName('')
       setShowNewProjectForm(false)
     } catch (err) {
@@ -127,9 +133,38 @@ export default function DashboardPage() {
     }
   }
 
+  const startEditing = (task: Task) => {
+    setEditingTaskId(task.id)
+    setEditTitle(task.title)
+    setEditDescription(task.description || '')
+  }
+
+  const cancelEditing = () => {
+    setEditingTaskId(null)
+    setEditTitle('')
+    setEditDescription('')
+  }
+
+  const saveEditing = async (taskId: number) => {
+    const token = auth.getToken()
+    if (!token) return
+
+    try {
+      await api.updateTask(token, taskId, {
+        title: editTitle,
+        description: editDescription || undefined,
+      })
+      const updatedTasks = await api.getTasks(token, filterStatus || undefined, selectedProjectId ?? undefined)
+      setTasks(updatedTasks)
+      cancelEditing()
+    } catch (err) {
+      console.error('Failed to update task:', err)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <p className="text-foreground/60">Loading...</p>
       </div>
     )
@@ -137,7 +172,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <Sidebar
         projects={projects}
         selectedProjectId={selectedProjectId}
@@ -148,16 +182,34 @@ export default function DashboardPage() {
         onCreateProject={() => setShowNewProjectForm(true)}
       />
 
-      {/* Main Content */}
       <main className="flex-1 p-6 md:p-12">
         <Container>
-          {/* Header */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-3xl font-bold tracking-tight">
               {showTrash ? 'Trash Bin' : selectedProjectId ? projects.find(p => p.id === selectedProjectId)?.name : 'Inbox'}
             </h1>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button variant="ghost" onClick={handleLogout}>Log out</Button>
+
+              <div className="flex rounded-lg border border-foreground/10 overflow-hidden">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    viewMode === 'list' ? 'bg-accent text-background' : 'bg-background hover:bg-foreground/5'
+                  }`}
+                >
+                  📋 List
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban')}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    viewMode === 'kanban' ? 'bg-accent text-background' : 'bg-background hover:bg-foreground/5'
+                  }`}
+                >
+                  📊 Kanban
+                </button>
+              </div>
+
               {!showTrash && (
                 <Button onClick={() => setShowCreateForm(!showCreateForm)}>
                   {showCreateForm ? 'Cancel' : 'New Task'}
@@ -172,7 +224,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* New Project Form */}
           {showNewProjectForm && (
             <form onSubmit={handleCreateProject} className="mb-8 rounded-lg border border-foreground/10 p-6">
               <Input
@@ -197,8 +248,7 @@ export default function DashboardPage() {
             </form>
           )}
 
-          {/* Status Filters */}
-          {!showTrash && (
+          {!showTrash && viewMode === 'list' && (
             <div className="mb-6 flex flex-wrap gap-2">
               {['', 'todo', 'in_progress', 'review', 'done'].map((status) => (
                 <button
@@ -216,7 +266,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Create Task Form */}
           {!showTrash && showCreateForm && (
             <form onSubmit={handleCreateTask} className="mb-8 rounded-lg border border-foreground/10 p-6">
               <Input
@@ -239,13 +288,14 @@ export default function DashboardPage() {
             </form>
           )}
 
-          {/* Task List */}
           {tasks.length === 0 ? (
             <div className="rounded-lg border border-foreground/10 p-12 text-center">
               <p className="text-foreground/60">
                 {showTrash ? 'Trash is empty.' : 'No tasks here yet. Create your first one!'}
               </p>
             </div>
+          ) : viewMode === 'kanban' && !showTrash ? (
+            <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
           ) : (
             <div className="space-y-3">
               {tasks.map((task) => (
@@ -257,16 +307,39 @@ export default function DashboardPage() {
                       : 'border-foreground/10 hover:border-accent/30'
                   }`}
                 >
-                  <div className="flex-1">
-                    <h3 className={`font-semibold ${task.status === 'done' ? 'line-through text-foreground/50' : ''}`}>
-                      {task.title}
-                    </h3>
-                    {task.description && (
-                      <p className={`mt-1 text-sm ${task.status === 'done' ? 'text-foreground/30 line-through' : 'text-foreground/60'}`}>
-                        {task.description}
-                      </p>
-                    )}
-                  </div>
+                  {editingTaskId === task.id ? (
+                    <div className="flex-1 space-y-3">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full rounded border border-foreground/20 bg-background px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-accent"
+                        autoFocus
+                      />
+                      <textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Add some details..."
+                        className="w-full rounded border border-foreground/20 bg-background px-3 py-2 text-sm text-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent"
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => saveEditing(task.id)}>Save</Button>
+                        <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1">
+                      <h3 className={`font-semibold ${task.status === 'done' ? 'line-through text-foreground/50' : ''}`}>
+                        {task.title}
+                      </h3>
+                      {task.description && (
+                        <p className={`mt-1 text-sm ${task.status === 'done' ? 'text-foreground/30 line-through' : 'text-foreground/60'}`}>
+                          {task.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
                     {showTrash ? (
@@ -276,7 +349,7 @@ export default function DashboardPage() {
                       >
                         ♻️ Restore
                       </button>
-                    ) : (
+                    ) : editingTaskId === task.id ? null : (
                       <>
                         <select
                           value={task.status}
@@ -289,22 +362,30 @@ export default function DashboardPage() {
                           <option value="done">Done</option>
                         </select>
 
-                        <button
-                          onClick={async () => {
-                            if (!confirm('Are you sure you want to delete this task?')) return
-                            const token = auth.getToken()
-                            if (!token) return
-                            try {
-                              await api.deleteTask(token, task.id)
-                              setTasks(tasks.filter((t) => t.id !== task.id))
-                            } catch (err) {
-                              console.error('Failed to delete task:', err)
-                            }
-                          }}
-                          className="rounded px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => startEditing(task)}
+                            className="rounded px-3 py-1.5 text-xs font-medium text-blue-500 transition-colors hover:bg-blue-500/10"
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to delete this task?')) return
+                              const token = auth.getToken()
+                              if (!token) return
+                              try {
+                                await api.deleteTask(token, task.id)
+                                setTasks(tasks.filter((t) => t.id !== task.id))
+                              } catch (err) {
+                                console.error('Failed to delete task:', err)
+                              }
+                            }}
+                            className="rounded px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
