@@ -50,6 +50,9 @@ export const api = {
     title: string
     description?: string
     status?: TaskStatus
+    priority?: TaskPriority
+    due_date?: string
+    project_id?: number
   }) {
     const response = await fetch(`${API_BASE}/tasks/`, {
       method: 'POST',
@@ -66,6 +69,8 @@ export const api = {
     title?: string
     description?: string
     status?: TaskStatus
+    priority?: TaskPriority
+    due_date?: string | null
     project_id?: number
   }) {
     const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
@@ -132,14 +137,18 @@ export const api = {
   }
 }
 
+export type TaskPriority = 'low' | 'medium' | 'high'
+
 export type Task = {
   id: number
   title: string
   description: string | null
   status: TaskStatus
+  priority: TaskPriority
+  due_date: string | null
+  project_id: number | null
   user_id: number
   is_deleted: boolean
-  created_at: string
 }
 export type Project = {
   id: number

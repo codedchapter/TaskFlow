@@ -7,27 +7,39 @@ class TaskStatus(str):
     REVIEW = "review"
     DONE = "done"
 
+
+class TaskPriority(str):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
 class TaskCreate(BaseModel):
     title: str = Field(min_length=3, max_length=255)
     description: str | None = Field(None, max_length=255)
     status: str = Field(default=TaskStatus.TODO)
+    priority: str = Field(default=TaskPriority.MEDIUM)
+    due_date: datetime | None = None
     project_id: int | None = None
+
 
 class TaskUpdate(BaseModel):
     title: str | None = Field(None, min_length=3, max_length=255)
     description: str | None = Field(None, max_length=255)
     status: str | None = None
+    priority: str | None = None
+    due_date: datetime | None = None
     project_id: int | None = None
 
 class TaskResponse(BaseModel):
     id: int
     title: str
-    description: str | None
+    description: str | None = None
     status: str
+    priority: str
+    due_date: datetime | None = None
+    project_id: int | None = None
     user_id: int
-    project_id: int | None
     is_deleted: bool
-    # created_at: datetime
 
     class Config:
         from_attributes = True
