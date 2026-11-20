@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { memo } from 'react'
 import { Project } from '@/lib/api'
 
 type SidebarProps = {
@@ -10,7 +10,7 @@ type SidebarProps = {
   onCreateProject: () => void
 }
 
-export default function Sidebar({ projects, selectedProjectId, onSelectProject, onCreateProject }: SidebarProps) {
+function Sidebar({ projects, selectedProjectId, onSelectProject, onCreateProject }: SidebarProps) {
   return (
     <aside className="hidden w-64 flex-col border-r border-foreground/10 bg-foreground/5 p-4 md:flex">
       <div className="mb-8">
@@ -19,7 +19,6 @@ export default function Sidebar({ projects, selectedProjectId, onSelectProject, 
       </div>
 
       <nav className="flex-1 space-y-1">
-        {/* Inbox (No Project) */}
         <button
           onClick={() => onSelectProject(null)}
           className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
@@ -35,7 +34,6 @@ export default function Sidebar({ projects, selectedProjectId, onSelectProject, 
         <div className="my-4 border-t border-foreground/10" />
         <p className="px-3 text-xs font-semibold uppercase tracking-wider text-foreground/40">Projects</p>
 
-        {/* Project List */}
         {projects.map((project) => (
           <button
             key={project.id}
@@ -54,7 +52,6 @@ export default function Sidebar({ projects, selectedProjectId, onSelectProject, 
           </button>
         ))}
 
-        {/* Create Project Button */}
         <button
           onClick={onCreateProject}
           className="mt-4 flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-foreground/60 transition-colors hover:bg-foreground/10 hover:text-foreground"
@@ -66,3 +63,5 @@ export default function Sidebar({ projects, selectedProjectId, onSelectProject, 
     </aside>
   )
 }
+
+export default memo(Sidebar)
